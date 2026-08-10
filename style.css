@@ -87,7 +87,7 @@ a { color: var(--ink); -webkit-tap-highlight-color: transparent; }
   position: absolute;
   width: var(--hw);
   left: calc(var(--hw) * -0.45); /* fingertip sits on the ring */
-  bottom: 22px;
+  bottom: 14px;
   z-index: 6;
   filter: drop-shadow(var(--glow));
 }
