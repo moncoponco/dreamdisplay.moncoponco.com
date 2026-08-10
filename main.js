@@ -13,6 +13,8 @@
     phase: i * 2.4,                           // own idle rhythm, so charms never sync up
     freq: 0.0009 + i * 0.00028,
     lag: parseFloat(el.dataset.lag || 0.1),   // how quickly mouse movement builds up on it
+    sway: parseFloat(el.dataset.sway || 1),   // idle sway size — bigger = more life on its own
+    drag: parseFloat(el.dataset.drag || 0.90),// closer to 1 = swings keep going longer
     wind: 0,                                  // smoothed mouse force
   }));
 
@@ -64,13 +66,13 @@
         c.angle += ((LIFT_TOTAL - c.base) - c.angle) * 0.06;
         c.vel = 0;
       } else {
-        // a barely-there idle sway, each charm on its own rhythm
-        const idle = Math.sin(t * c.freq + c.phase) * 0.05;
+        // a barely-there idle sway, each charm on its own rhythm and size
+        const idle = Math.sin(t * c.freq + c.phase) * 0.05 * c.sway;
         // mouse movement builds up as a smooth "wind" instead of hitting directly;
         // each charm has its own data-lag, so no two respond the same way
         c.wind += (kick * 0.007 * c.coup - c.wind) * c.lag;
         c.vel += -c.k * c.angle + c.wind + idle * c.coup;
-        c.vel *= 0.90;                                 // air drag
+        c.vel *= c.drag;                               // air drag
         c.angle = Math.max(-80, Math.min(55, c.angle + c.vel));
       }
       c.el.style.transform = 'rotate(' + (c.base + c.angle) + 'deg)';
