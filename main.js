@@ -49,6 +49,33 @@
 
   addEventListener('pointerleave', () => { lastPointerX = null; });
 
+  /* ---- phone tilt: the charms hang toward real gravity ---- */
+
+  let tilt = 0;
+
+  function startTilt() {
+    addEventListener('deviceorientation', e => {
+      if (e.gamma == null) return;
+      // gamma = left/right tilt in degrees; flip the sign if it feels backwards
+      tilt = Math.max(-40, Math.min(40, e.gamma)) * 0.8;
+    }, true);
+  }
+
+  if (typeof DeviceOrientationEvent !== 'undefined' &&
+      typeof DeviceOrientationEvent.requestPermission === 'function') {
+    // iOS asks the visitor for motion access — must happen inside a tap
+    let asked = false;
+    addEventListener('pointerdown', () => {
+      if (asked) return;
+      asked = true;
+      DeviceOrientationEvent.requestPermission()
+        .then(state => { if (state === 'granted') startTilt(); })
+        .catch(() => {});
+    });
+  } else {
+    startTilt(); // android and desktop browsers, no permission needed
+  }
+
   function frame(t) {
     // settle onto the string
     px += (w / 2 - px) * 0.1;
@@ -71,7 +98,8 @@
         // mouse movement builds up as a smooth "wind" instead of hitting directly;
         // each charm has its own data-lag, so no two respond the same way
         c.wind += (kick * 0.007 * c.coup - c.wind) * c.lag;
-        c.vel += -c.k * c.angle + c.wind + idle * c.coup;
+        // the spring pulls toward the phone's tilt (0 on desktop), not plain zero
+        c.vel += -c.k * (c.angle - tilt) + c.wind + idle * c.coup;
         c.vel *= c.drag;                               // air drag
         c.angle = Math.max(-80, Math.min(55, c.angle + c.vel));
       }
