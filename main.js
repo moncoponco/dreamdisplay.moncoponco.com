@@ -110,6 +110,13 @@
 
   /* ---- click ripple (from the main site) ---- */
 
+  /* ---- RSVP link, kept encoded so the public repo isn't searchable for it.
+     to change it: run  btoa("https://the-new-link")  in the browser console
+     and paste the result between the quotes below ---- */
+
+  document.querySelector('.rsvp-float').href =
+    atob('aHR0cHM6Ly9wYXJ0aWZ1bC5jb20vZS85eEFiVjlOMTlyUDV4UTF1bkdpdz9jPUQ3TnNXWjhR');
+
   // a tap/click gives the charms a swing (this is the phone interaction)
   addEventListener('pointerdown', e => {
     lastActive = performance.now(); // taps lift the face aside too
