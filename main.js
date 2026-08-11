@@ -30,8 +30,8 @@
   let w = innerWidth, h = innerHeight;
 
   function anchorY() {
-    // ring center: upper-middle, but always leaving room for the paper below
-    return Math.max(90, Math.min(h * 0.30, h - 640));
+    // ring center: sits higher up, always leaving clear room for the paper + rsvp pill below
+    return Math.max(70, Math.min(h * 0.20, h - 720));
   }
 
   // fixed hanging point, entered from above
