@@ -9,20 +9,23 @@
     coup: parseFloat(el.dataset.coup || 1),   // how strongly mouse movement swings it
     k:    parseFloat(el.dataset.k || 0.05),   // spring stiffness back to rest
     angle: 0,
-    vel: 0.8 + i * 0.4,                       // a little kick so it settles in alive
-    phase: i * 2.4,                           // own idle rhythm, so charms never sync up
-    freq: 0.0009 + i * 0.00028,
-    lag: parseFloat(el.dataset.lag || 0.1),   // how quickly mouse movement builds up on it
-    sway: parseFloat(el.dataset.sway || 1),   // idle sway size — bigger = more life on its own
-    drag: parseFloat(el.dataset.drag || 0.90),// closer to 1 = swings keep going longer
-    wind: 0,                                  // smoothed mouse force
+    vel: 0.8 + i * 0.4,                        // a little kick so it settles in alive
+    phase: parseFloat(el.dataset.phase || i * 2.4), // where in the swing cycle it starts —
+                                               // charms sharing a freq but π apart swing in opposition
+    freq: parseFloat(el.dataset.freq || (0.0009 + i * 0.00028)),
+    swing: parseFloat(el.dataset.swing || 1.5),// degrees it swings to EACH side, continuously
+    lag: parseFloat(el.dataset.lag || 0.1),    // how quickly mouse movement builds up on it
+    drag: parseFloat(el.dataset.drag || 0.90), // closer to 1 = swings keep going longer
+    tiltf: parseFloat(el.dataset.tilt || 1),   // how much phone tilt moves it (0 = ignores tilt)
+    wind: 0,                                   // smoothed mouse force
   }));
 
   // the face charm lifts out of the way when the user interacts
   const face = charms.find(c => c.el.classList.contains('charm-face'));
-  const LIFT_TOTAL = -80;      // total angle when held aside (≈ horizontal, up-left)
+  const LIFT_MAG = 80;         // total angle when held aside (≈ horizontal)
   const LIFT_HOLD = 1000;      // ms of stillness before it swings back down
   let lastActive = -99999;
+  let liftDir = 0;             // -1 left / +1 right, chosen when the lift starts
 
   let w = innerWidth, h = innerHeight;
 
@@ -53,8 +56,21 @@
 
   let tilt = 0;
 
+  // add ?debug to the url to see what the sensor is doing
+  const debugBox = location.search.includes('debug') ? (() => {
+    const d = document.createElement('div');
+    d.style.cssText = 'position:fixed;top:60px;left:16px;z-index:99999;background:#111;color:#0f0;' +
+      'font:12px monospace;padding:8px;border-radius:6px;pointer-events:none';
+    d.textContent = 'debug: waiting for tap…';
+    document.body.appendChild(d);
+    return d;
+  })() : null;
+
   function startTilt() {
+    if (debugBox) debugBox.textContent = 'debug: listener on, no events yet';
     addEventListener('deviceorientation', e => {
+      if (debugBox) debugBox.textContent =
+        'gamma: ' + (e.gamma == null ? 'null' : e.gamma.toFixed(1)) + '  tilt: ' + tilt.toFixed(1);
       if (e.gamma == null) return;
       // gamma = left/right tilt in degrees; flip the sign if it feels backwards
       tilt = Math.max(-40, Math.min(40, e.gamma)) * 0.8;
@@ -63,14 +79,20 @@
 
   if (typeof DeviceOrientationEvent !== 'undefined' &&
       typeof DeviceOrientationEvent.requestPermission === 'function') {
-    // iOS asks the visitor for motion access — must happen inside a tap
+    // iOS asks the visitor for motion access — must be inside a 'click'
+    // (pointerdown doesn't count as a gesture for this api on ios)
     let asked = false;
-    addEventListener('pointerdown', () => {
+    addEventListener('click', () => {
       if (asked) return;
       asked = true;
       DeviceOrientationEvent.requestPermission()
-        .then(state => { if (state === 'granted') startTilt(); })
-        .catch(() => {});
+        .then(state => {
+          if (debugBox) debugBox.textContent = 'debug: permission ' + state;
+          if (state === 'granted') startTilt();
+        })
+        .catch(err => {
+          if (debugBox) debugBox.textContent = 'debug: permission error — ' + err;
+        });
     });
   } else {
     startTilt(); // android and desktop browsers, no permission needed
@@ -86,22 +108,24 @@
     impulse = 0; // consumed this frame
 
     const faceLifted = face && (t - lastActive < LIFT_HOLD);
+    if (!faceLifted) liftDir = 0;
 
     for (const c of charms) {
       if (c === face && faceLifted) {
-        // held aside: glide smoothly to the lifted position and stay still
-        c.angle += ((LIFT_TOTAL - c.base) - c.angle) * 0.06;
+        // lift out of the way toward whichever side it's already closest to
+        if (liftDir === 0) liftDir = (c.base + c.angle) >= 0 ? 1 : -1;
+        c.angle += ((liftDir * LIFT_MAG - c.base) - c.angle) * 0.06;
         c.vel = 0;
       } else {
-        // a barely-there idle sway, each charm on its own rhythm and size
-        const idle = Math.sin(t * c.freq + c.phase) * 0.05 * c.sway;
+        // the resting point itself breathes: phone tilt + a slow left-right swing.
+        // charms with the same data-freq but phases π apart swing in opposition.
+        const target = tilt * c.tiltf + Math.sin(t * c.freq + c.phase) * c.swing;
         // mouse movement builds up as a smooth "wind" instead of hitting directly;
         // each charm has its own data-lag, so no two respond the same way
         c.wind += (kick * 0.007 * c.coup - c.wind) * c.lag;
-        // the spring pulls toward the phone's tilt (0 on desktop), not plain zero
-        c.vel += -c.k * (c.angle - tilt) + c.wind + idle * c.coup;
+        c.vel += -c.k * (c.angle - target) + c.wind;
         c.vel *= c.drag;                               // air drag
-        c.angle = Math.max(-80, Math.min(55, c.angle + c.vel));
+        c.angle = Math.max(-80, Math.min(80, c.angle + c.vel));
       }
       c.el.style.transform = 'rotate(' + (c.base + c.angle) + 'deg)';
     }
