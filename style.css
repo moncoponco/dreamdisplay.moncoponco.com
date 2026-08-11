@@ -83,10 +83,13 @@ a { color: var(--ink); -webkit-tap-highlight-color: transparent; }
 
 /* the hand that holds the keychain — arm runs off the top of the screen */
 .hand {
-  --hw: min(15vw, 108px);
+  /* sized by height so the arm ALWAYS runs off the top of the screen:
+     the ring hangs at most 30vh down, so 30vh + a buffer always covers it */
+  --hh: calc(30vh + 80px);
   position: absolute;
-  width: var(--hw);
-  left: calc(var(--hw) * -0.45); /* fingertip sits on the ring */
+  height: var(--hh);
+  width: auto;
+  left: calc(var(--hh) * -0.144); /* fingertip (45% into the image) sits on the ring */
   bottom: 14px;
   z-index: 6;
   filter: drop-shadow(var(--glow));
